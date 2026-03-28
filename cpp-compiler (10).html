@@ -1,0 +1,776 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ΤΟ ΜΑΓΙΚΟ COMPILER</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,600&family=Cinzel:wght@400;600;700;900&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
+<style>
+:root {
+  --void: #080e06;
+  --deep: #0c140a;
+  --velvet: #101a0d;
+  --chamber: #162010;
+  --gold: #d4b800;
+  --gold-bright: #f0d800;
+  --gold-pale: #faeea0;
+  --gold-dim: #8a7800;
+  --gold-muted: #3a3000;
+  --ruby: #8b1a1a;
+  --ruby-dim: #5a0e0e;
+  --emerald: #4caf50;
+  --emerald-dim: #1b5e20;
+  --amber-royal: #d4b800;
+  --ink: #e8f0e4;
+  --parchment: #b8d4b0;
+  --dust: #6a8a64;
+  --shadow: #1e3a1a;
+  --mono: 'JetBrains Mono', monospace;
+  --serif: 'Cormorant Garamond', Georgia, serif;
+  --display: 'Cinzel', serif;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+html,body { height:100%; background:var(--void); color:var(--ink); font-family:var(--mono); overflow:hidden; }
+body::before {
+  content:''; position:fixed; inset:0; pointer-events:none; z-index:0;
+  background-image:
+    radial-gradient(ellipse 80% 60% at 50% -10%, rgba(30,100,20,0.15) 0%, transparent 60%),
+    radial-gradient(ellipse 40% 40% at 85% 85%, rgba(139,26,26,0.08) 0%, transparent 50%);
+}
+body>*{position:relative;z-index:1;}
+
+/* ── CODEMIRROR ROYAL THEME ── */
+.CodeMirror {
+  height: 100%;
+  font-family: var(--mono) !important;
+  font-size: 13px;
+  line-height: 1.72;
+  background: var(--void) !important;
+  color: #e8e4f0 !important;
+}
+.CodeMirror-scroll { padding: 6px 0; }
+.CodeMirror-gutters {
+  background: #0b0919 !important;
+  border-right: 1px solid var(--gold-muted) !important;
+  min-width: 50px;
+}
+.CodeMirror-linenumber {
+  color: #3a3455 !important;
+  padding: 0 8px 0 6px !important;
+  font-size: 12px;
+}
+.CodeMirror-cursor { border-left: 2px solid var(--gold) !important; }
+.CodeMirror-selected { background: rgba(76,175,80,0.15) !important; }
+.CodeMirror-focused .CodeMirror-selected { background: rgba(76,175,80,0.2) !important; }
+.CodeMirror-activeline-background { background: rgba(76,175,80,0.06) !important; }
+.CodeMirror-matchingbracket { color: #f0d800 !important; background: rgba(212,184,0,0.2); border-radius: 2px; }
+
+/* C++ syntax colors — royal palette */
+.cm-keyword    { color: #c792ea !important; }   /* purple — control flow */
+.cm-builtin    { color: #89ddff !important; }   /* cyan — built-ins */
+.cm-atom       { color: #f78c6c !important; }   /* orange — constants */
+.cm-number     { color: #f78c6c !important; }   /* orange — numbers */
+.cm-string     { color: #c9a84c !important; }   /* gold — strings */
+.cm-string-2   { color: #c9a84c !important; }
+.cm-comment    { color: #4a4568 !important; font-style: italic; }  /* muted purple */
+.cm-variable   { color: #e8e4f0 !important; }
+.cm-variable-2 { color: #89ddff !important; }   /* cyan */
+.cm-variable-3 { color: #4ac98a !important; }   /* emerald — types */
+.cm-type       { color: #4ac98a !important; }   /* emerald — types */
+.cm-def        { color: #e8c76a !important; }   /* gold — definitions */
+.cm-property   { color: #b8bcd0 !important; }
+.cm-operator   { color: #e05050 !important; }   /* red — operators */
+.cm-meta       { color: #5a9ef0 !important; }   /* sapphire — preprocessor */
+.cm-qualifier  { color: #5a9ef0 !important; }
+.cm-tag        { color: #5a9ef0 !important; }
+.cm-error      { color: #c94a5a !important; background: rgba(201,74,90,0.1); }
+.cm-bracket    { color: #c8c2dc !important; }
+.cm-hr         { color: var(--dust) !important; }
+
+.CodeMirror-scrollbar-filler, .CodeMirror-gutter-filler { background: var(--deep) !important; }
+.CodeMirror::-webkit-scrollbar { width: 6px; height: 6px; }
+.CodeMirror::-webkit-scrollbar-thumb { background: #3a3455; border-radius: 2px; }
+
+/* HEADER */
+.crown-header {
+  display:flex; align-items:center; height:58px; padding:0 24px;
+  background:var(--deep); border-bottom:1px solid var(--gold-dim);
+  position:relative; flex-shrink:0;
+}
+.crown-header::before {
+  content:''; position:absolute; top:0; left:0; right:0; height:2px;
+  background:linear-gradient(90deg,transparent,var(--ruby-dim),var(--ruby),#c0392b,var(--ruby),var(--ruby-dim),transparent);
+}
+.royal-logo { display:flex; align-items:center; gap:14px; }
+.crown-emblem { width:38px; height:38px; filter:drop-shadow(0 0 10px rgba(201,168,76,0.4)); }
+.royal-wordmark { display:flex; flex-direction:column; line-height:1; }
+.royal-title { font-family:var(--display); font-size:15px; font-weight:700; letter-spacing:0.18em; color:var(--gold); text-transform:uppercase; }
+.royal-subtitle { font-family:var(--serif); font-size:11px; font-style:italic; color:var(--dust); letter-spacing:0.06em; margin-top:3px; }
+.header-ornament { flex:1; display:flex; align-items:center; padding:0 24px; }
+.orn-line { flex:1; height:1px; background:linear-gradient(90deg,transparent,var(--gold-dim)); opacity:0.45; }
+.orn-line.r { background:linear-gradient(90deg,var(--gold-dim),transparent); }
+.orn-gem { padding:0 14px; color:var(--gold-dim); font-size:13px; opacity:0.6; }
+.header-controls { display:flex; align-items:center; gap:10px; }
+.royal-select {
+  background:var(--velvet); border:1px solid var(--gold-dim); color:var(--parchment);
+  font-family:var(--display); font-size:10px; letter-spacing:0.08em;
+  padding:6px 24px 6px 10px; border-radius:3px; cursor:pointer; outline:none;
+  transition:border-color 0.2s,color 0.2s; appearance:none;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%237a6127'/%3E%3C/svg%3E");
+  background-repeat:no-repeat; background-position:right 8px center;
+}
+.royal-select:hover { border-color:var(--gold); color:var(--gold-pale); }
+.royal-select option { background:var(--chamber); font-family:monospace; }
+.kbd-hint { font-family:var(--mono); font-size:10px; color:var(--gold); background:var(--velvet); border:1px solid var(--gold-muted); border-radius:3px; padding:3px 7px; }
+.decree-btn {
+  display:flex; align-items:center; gap:8px;
+  background:linear-gradient(135deg,#6b0000,#8b1a1a,#c0392b,#8b1a1a);
+  color:#faeea0; border:1px solid #c0392b;
+  padding:7px 20px; border-radius:3px;
+  font-family:var(--display); font-size:11px; font-weight:700;
+  letter-spacing:0.18em; text-transform:uppercase;
+  cursor:pointer; transition:all 0.2s;
+}
+.decree-btn:hover { transform:translateY(-1px); box-shadow:0 4px 20px rgba(139,26,26,0.5); }
+.decree-btn:active { transform:translateY(0); }
+.casino-btn {
+  display:flex; align-items:center; gap:6px;
+  background:linear-gradient(135deg,#1a0a2e,#2d1b4e,#1a0a2e);
+  color:#f0d800; border:1px solid #6a3fa0;
+  padding:7px 16px; border-radius:3px;
+  font-family:var(--display); font-size:11px; font-weight:700;
+  letter-spacing:0.12em; text-transform:uppercase;
+  cursor:pointer; transition:all 0.2s;
+}
+.qibla-btn {
+  display:flex; align-items:center; gap:6px;
+  background:linear-gradient(135deg,#0a1f0a,#1a4a1a);
+  color:#4caf50; border:1px solid #2a6a2a;
+  padding:7px 16px; border-radius:3px;
+  font-family:var(--display); font-size:11px; font-weight:700;
+  letter-spacing:0.12em; text-transform:uppercase;
+  cursor:pointer; transition:all 0.2s;
+}
+.qibla-btn:hover { box-shadow:0 0 16px rgba(76,175,80,0.4); border-color:#4caf50; transform:translateY(-1px); }
+@media(max-width:700px){ .qibla-btn { font-size:10px; padding:7px 10px; } }
+.casino-btn:hover { box-shadow:0 0 16px rgba(160,80,255,0.4); border-color:#a050ff; transform:translateY(-1px); }
+@media(max-width:700px){ .casino-btn { font-size:10px; padding:7px 10px; } }
+.decree-btn:disabled { opacity:0.4; cursor:not-allowed; transform:none; box-shadow:none; }
+.btn-play { width:0; height:0; border:solid transparent; border-width:5px 0 5px 9px; border-left-color:var(--void); }
+.btn-spinner { width:13px; height:13px; border:2px solid rgba(255,220,0,0.2); border-top-color:#f0d800; border-radius:50%; animation:spin 0.7s linear infinite; display:none; }
+@keyframes spin{to{transform:rotate(360deg);}}
+
+/* WORKSPACE */
+.workspace { display:flex; height:calc(100vh - 58px); overflow:hidden; }
+
+/* EDITOR PANEL */
+.editor-panel { flex:1; min-width:0; display:flex; flex-direction:column; border-right:1px solid var(--gold-dim); }
+.panel-crown { display:flex; align-items:center; height:38px; padding:0 16px; background:var(--deep); border-bottom:1px solid var(--gold-muted); flex-shrink:0; }
+.royal-tab { display:flex; align-items:center; gap:7px; height:38px; padding:0 14px; font-family:var(--display); font-size:10px; letter-spacing:0.12em; color:var(--dust); cursor:pointer; border-bottom:2px solid transparent; transition:all 0.2s; text-transform:uppercase; }
+.royal-tab.active { color:var(--gold); border-bottom-color:var(--gold); }
+.tab-gem { width:5px; height:5px; border-radius:50%; background:var(--gold); box-shadow:0 0 6px rgba(212,184,0,0.5); }
+.panel-actions { margin-left:auto; display:flex; gap:8px; }
+.ghost-btn { background:none; border:1px solid var(--gold-muted); color:var(--dust); font-family:var(--display); font-size:9px; letter-spacing:0.1em; text-transform:uppercase; padding:3px 10px; border-radius:2px; cursor:pointer; transition:all 0.15s; }
+.ghost-btn:hover { border-color:var(--gold-dim); color:var(--gold); }
+.editor-body { flex:1; display:flex; overflow:hidden; background:var(--void); }
+
+/* RESIZE */
+.sceptre { width:5px; background:var(--gold-muted); cursor:col-resize; flex-shrink:0; transition:background 0.15s; }
+.sceptre:hover { background:var(--gold-dim); }
+
+/* OUTPUT PANEL */
+.output-panel { width:42%; min-width:260px; display:flex; flex-direction:column; background:var(--deep); }
+.out-panel-crown { display:flex; align-items:center; height:38px; background:var(--deep); border-bottom:1px solid var(--gold-muted); flex-shrink:0; }
+.out-tab { display:flex; align-items:center; gap:7px; height:38px; padding:0 18px; font-family:var(--display); font-size:10px; letter-spacing:0.12em; color:var(--dust); cursor:pointer; border-bottom:2px solid transparent; text-transform:uppercase; transition:all 0.2s; }
+.out-tab.active { color:var(--gold); border-bottom-color:var(--gold); }
+.herald-dot { width:6px; height:6px; border-radius:50%; background:var(--shadow); transition:all 0.3s; }
+.herald-dot.ok  { background:var(--emerald); box-shadow:0 0 8px rgba(74,201,138,0.4); }
+.herald-dot.err { background:var(--ruby);    box-shadow:0 0 8px rgba(201,74,90,0.4); }
+.herald-dot.warn { background:var(--amber-royal); }
+.herald-dot.pulse { background:var(--emerald); animation:royal-pulse 1s infinite; box-shadow:0 0 8px rgba(76,175,80,0.5); }
+@keyframes royal-pulse{0%,100%{opacity:1;}50%{opacity:0.2;}}
+.output-scroll { flex:1; overflow:auto; scrollbar-width:thin; scrollbar-color:var(--shadow) transparent; }
+.output-scroll::-webkit-scrollbar{width:5px;}
+.output-scroll::-webkit-scrollbar-thumb{background:var(--shadow);border-radius:2px;}
+.output-parchment { padding:18px 20px; min-height:100%; }
+
+.proclamation { display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:200px; height:100%; text-align:center; padding:32px; gap:10px; }
+.proclamation-crown { margin-bottom:8px; opacity:0.3; }
+.proclamation-title { font-family:var(--display); font-size:13px; letter-spacing:0.14em; color:var(--gold-dim); text-transform:uppercase; }
+.proclamation-sub { font-family:var(--serif); font-style:italic; font-size:13px; color:var(--shadow); }
+
+.scroll-line { font-family:var(--mono); font-size:12.5px; line-height:1.7; white-space:pre-wrap; word-break:break-all; }
+.line-stdout { color:var(--ink); }
+.line-stderr { color:var(--ruby); }
+.line-system { color:var(--dust); font-family:var(--serif); font-style:italic; font-size:12px; }
+.line-warn   { color:var(--amber-royal); }
+
+.output-sep { display:flex; align-items:center; gap:10px; margin:10px 0; color:var(--gold-dim); font-family:var(--display); font-size:10px; letter-spacing:0.1em; }
+.output-sep::before,.output-sep::after { content:''; flex:1; height:1px; background:var(--gold-muted); }
+
+.exit-banner { display:flex; align-items:center; gap:10px; margin-top:12px; padding-top:12px; border-top:1px solid var(--gold-muted); font-family:var(--display); font-size:10px; letter-spacing:0.1em; color:var(--dust); text-transform:uppercase; }
+.exit-code { font-size:11px; font-weight:700; }
+.exit-code.ok  { color:var(--emerald); }
+.exit-code.err { color:var(--ruby); }
+.exit-elapsed { margin-left:auto; color:var(--shadow); }
+
+.stdin-chamber { border-top:1px solid var(--gold-muted); background:var(--velvet); padding:10px 16px; display:flex; gap:10px; align-items:flex-start; flex-shrink:0; }
+.stdin-sigil { font-family:var(--display); font-size:9px; letter-spacing:0.1em; color:var(--gold-dim); text-transform:uppercase; padding-top:6px; white-space:nowrap; }
+.stdin-scroll { flex:1; background:var(--void); border:1px solid var(--gold-muted); border-radius:2px; color:var(--parchment); font-family:var(--mono); font-size:12px; padding:5px 9px; outline:none; resize:none; min-height:30px; max-height:80px; transition:border-color 0.2s; }
+.stdin-scroll:focus { border-color:var(--gold-dim); }
+
+.status-bar { display:none; align-items:center; gap:10px; padding:6px 16px; border-top:1px solid var(--gold-muted); background:var(--velvet); font-family:var(--display); font-size:9px; letter-spacing:0.1em; text-transform:uppercase; color:var(--dust); flex-shrink:0; }
+.status-badge { padding:2px 10px; border-radius:2px; font-size:9px; letter-spacing:0.12em; }
+.status-badge.ok  { background:var(--emerald-dim); border:1px solid var(--emerald); color:var(--emerald); }
+.status-badge.err { background:var(--ruby-dim);    border:1px solid var(--ruby);    color:var(--ruby); }
+
+/* ── MOBILE RESPONSIVE ── */
+@media (max-width: 700px) {
+  html,body { overflow:hidden; height:100%; height:100dvh; }
+
+  .crown-header {
+    height:auto; padding:10px 14px; flex-wrap:wrap; gap:8px;
+  }
+  .header-ornament { display:none; }
+  .royal-logo { flex:1; min-width:0; }
+  .royal-title { font-size:12px; letter-spacing:0.1em; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .royal-subtitle { display:none; }
+  .crown-emblem { width:28px; height:28px; }
+  .header-controls { width:100%; display:flex; gap:6px; align-items:center; padding-bottom:2px; }
+  .royal-select { flex:1; font-size:11px; padding:7px 22px 7px 8px; }
+  .kbd-hint { display:none; }
+  .decree-btn { padding:8px 14px; font-size:11px; letter-spacing:0.1em; white-space:nowrap; }
+
+  .workspace {
+    flex-direction:column;
+    height:calc(100dvh - var(--header-h, 96px));
+    overflow:hidden;
+  }
+
+  .editor-panel {
+    flex:none;
+    height:50%;
+    border-right:none;
+    border-bottom:1px solid var(--gold-dim);
+  }
+
+  .sceptre { display:none; }
+
+  .output-panel {
+    flex:1;
+    width:100%;
+    min-width:0;
+    height:50%;
+  }
+
+  .panel-crown, .out-panel-crown { height:34px; }
+  .royal-tab, .out-tab { font-size:9px; padding:0 10px; }
+  .ghost-btn { font-size:9px; padding:4px 8px; }
+
+  .CodeMirror { font-size:12px !important; }
+  .CodeMirror-gutters { min-width:38px; }
+  .CodeMirror-linenumber { font-size:11px !important; padding:0 4px 0 4px !important; }
+
+  .output-parchment { padding:12px 14px; }
+  .scroll-line { font-size:12px; }
+
+  .stdin-chamber { padding:7px 12px; gap:8px; }
+  .stdin-sigil { font-size:8px; }
+  .stdin-scroll { font-size:12px; }
+
+  .status-bar { padding:5px 12px; font-size:8px; }
+}
+
+@media (max-width: 400px) {
+  .royal-title { font-size:10px; }
+  .decree-btn { font-size:10px; padding:7px 10px; }
+}
+
+/* ── AI HELPER PANEL (always visible, minimal) ── */
+.ai-panel { transition: width 0.25s ease; }
+.ai-panel.collapsed { width:28px !important; min-width:28px !important; }
+.ai-panel.collapsed .ai-messages,
+.ai-panel.collapsed .ai-quick-btns,
+.ai-panel.collapsed .ai-input-row,
+.ai-panel.collapsed .ai-panel-title { display:none; }
+.ai-panel {
+  width:300px; min-width:260px; flex-shrink:0;
+  display:flex; flex-direction:column;
+  background:var(--deep); border-left:1px solid var(--gold-dim);
+}
+.ai-panel-crown {
+  display:flex; align-items:center; gap:7px;
+  height:38px; padding:0 18px;
+  background:var(--deep); border-bottom:1px solid var(--gold-muted); flex-shrink:0;
+}
+.ai-panel-title {
+  font-family:var(--display); font-size:10px; letter-spacing:0.12em;
+  color:var(--gold); text-transform:uppercase; border-bottom:2px solid var(--gold);
+  height:38px; display:flex; align-items:center;
+}
+.ai-messages {
+  flex:1; overflow-y:auto; padding:10px 10px; display:flex;
+  flex-direction:column; gap:8px;
+  scrollbar-width:thin; scrollbar-color:#1a1a3a transparent;
+}
+.ai-messages::-webkit-scrollbar { width:3px; }
+.ai-messages::-webkit-scrollbar-thumb { background:#1a1a3a; border-radius:2px; }
+.ai-msg {
+  font-size:11.5px; line-height:1.6; font-family:var(--mono);
+  white-space:pre-wrap; word-break:break-word; padding:8px 10px;
+  border-radius:6px; max-width:95%;
+}
+.ai-msg.user {
+  align-self:flex-end;
+  background:rgba(30,30,80,0.5); border:1px solid #252560;
+  color:var(--parchment); border-radius:6px 6px 2px 6px;
+}
+.ai-msg.assistant {
+  align-self:flex-start;
+  background:rgba(137,221,255,0.04); border:1px solid #1a2a3a;
+  color:#a8cce0; border-radius:6px 6px 6px 2px;
+}
+.ai-msg.system {
+  align-self:center; font-size:10px; color:var(--shadow);
+  font-style:italic; font-family:var(--serif);
+  background:none; border:none; padding:2px 0;
+}
+.ai-msg.thinking {
+  align-self:flex-start; color:#4a6a8a; font-size:11px;
+  font-style:italic; background:none; border:none;
+  animation:ai-blink 1.2s infinite;
+}
+@keyframes ai-blink { 0%,100%{opacity:0.7;} 50%{opacity:0.2;} }
+.ai-quick-btns {
+  display:flex; flex-wrap:wrap; gap:4px; padding:6px 10px;
+  border-top:1px solid #1a1a3a; flex-shrink:0;
+}
+.ai-quick {
+  background:none; border:1px solid #1e1e4a;
+  color:#4a6a8a; font-family:var(--mono); font-size:10px;
+  padding:4px 8px; border-radius:3px; cursor:pointer; transition:all 0.15s;
+}
+.ai-quick:hover { border-color:#4a6aaa; color:#89ddff; }
+.ai-input-row {
+  display:flex; gap:6px; padding:8px 10px;
+  border-top:1px solid #1a1a3a; flex-shrink:0;
+}
+.ai-input {
+  flex:1; background:var(--void); border:1px solid #1e1e4a; color:var(--ink);
+  font-family:var(--mono); font-size:11px; padding:6px 8px;
+  border-radius:4px; outline:none; resize:none; min-height:32px; max-height:80px;
+  transition:border-color 0.15s;
+}
+.ai-input:focus { border-color:#4a6aaa; }
+.ai-send {
+  background:none; border:1px solid #252560;
+  color:#4a6a8a; font-size:14px;
+  padding:6px 8px; border-radius:4px; cursor:pointer;
+  transition:all 0.15s; align-self:flex-end; line-height:1;
+}
+.ai-send:hover { border-color:#89ddff; color:#89ddff; }
+.ai-send:disabled { opacity:0.3; cursor:not-allowed; }
+@media(max-width:700px){
+  .ai-panel { transition: width 0.25s ease; }
+.ai-panel.collapsed { width:28px !important; min-width:28px !important; }
+.ai-panel.collapsed .ai-messages,
+.ai-panel.collapsed .ai-quick-btns,
+.ai-panel.collapsed .ai-input-row,
+.ai-panel.collapsed .ai-panel-title { display:none; }
+.ai-panel { display:none; }
+}
+
+</style>
+</head>
+<body>
+
+<header class="crown-header">
+  <div class="royal-logo">
+    <svg class="crown-emblem" viewBox="0 0 38 38" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <text x="19" y="26" text-anchor="middle" fill="#f0d800" font-family="serif" font-size="16" font-weight="bold">C++</text>
+    </svg>
+    <div class="royal-wordmark">
+      <div class="royal-title">ΤΟ ΜΑΓΙΚΟ COMPILER</div>
+      <div class="royal-subtitle">by Fosteiras ton Makaronion</div>
+    </div>
+  </div>
+  <div class="header-ornament">
+    <div class="orn-line"></div>
+    <div class="orn-gem">✦</div>
+    <div class="orn-line r"></div>
+  </div>
+  <div class="header-controls">
+    <select class="royal-select" id="compilerSelect">
+      <option value="gcc-head">GCC Latest</option>
+      <option value="gcc-12">GCC 12</option>
+      <option value="clang-head">Clang Latest</option>
+      <option value="clang-16">Clang 16</option>
+    </select>
+    <select class="royal-select" id="stdSelect">
+      <option value="c++23">C++23</option>
+      <option value="c++20" selected>C++20</option>
+      <option value="c++17">C++17</option>
+      <option value="c++14">C++14</option>
+      <option value="c++11">C++11</option>
+    </select>
+    <span class="kbd-hint">⌘ Return</span>
+    <button class="casino-btn" onclick="window.location.href='casino.html'">🎰 Casino</button>
+    <button class="qibla-btn" onclick="window.location.href='qibla.html'">🕌 Qibla</button>
+    <button class="decree-btn" id="runBtn" onclick="runCode()">
+      <div class="btn-play"    id="btnIcon"></div>
+      <div class="btn-spinner" id="btnSpinner"></div>
+      <span id="btnText">Execute</span>
+    </button>
+  </div>
+</header>
+
+<div class="workspace">
+
+  <div class="editor-panel" id="editorPanel">
+    <div class="panel-crown">
+      <div class="royal-tab active"><div class="tab-gem"></div>main.cpp</div>
+      <div class="panel-actions">
+        <button class="ghost-btn" onclick="copyCode()">Copy</button>
+        <button class="ghost-btn" onclick="clearEditor()">Clear</button>
+      </div>
+    </div>
+    <div class="editor-body">
+      <textarea id="editor"></textarea>
+    </div>
+  </div>
+
+  <div class="sceptre" id="resizeHandle"></div>
+
+  <div class="output-panel" id="outputPanel">
+    <div class="out-panel-crown">
+      <div class="out-tab active">Proclamation&nbsp;<span class="herald-dot" id="heraldDot"></span></div>
+    </div>
+    <div class="output-scroll" id="outputScroll">
+      <div class="output-parchment" id="outputParchment">
+        <div class="proclamation" id="welcomeState">
+          <div class="proclamation-crown">
+            <svg width="52" height="44" viewBox="0 0 52 44" fill="none">
+              <path d="M5 38 L5 22 L14 30 L26 9 L38 30 L47 22 L47 38 Z" fill="#8b1a1a"/>
+              <circle cx="5"  cy="21" r="4.5" fill="#c0392b"/>
+              <circle cx="26" cy="8"  r="4.5" fill="#c0392b"/>
+              <circle cx="47" cy="21" r="4.5" fill="#c0392b"/>
+              <rect x="4" y="38" width="44" height="5" rx="1" fill="#8b1a1a"/>
+            </svg>
+          </div>
+          <div class="proclamation-title">Awaiting Royal Decree</div>
+          <div class="proclamation-sub">Press Execute to compile and run</div>
+          <div class="proclamation-sub" style="font-size:11px;margin-top:4px;">Powered by Wandbox</div>
+        </div>
+      </div>
+    </div>
+    <div class="stdin-chamber">
+      <div class="stdin-sigil">Stdin</div>
+      <textarea class="stdin-scroll" id="stdinInput" placeholder="Program input (optional)..." rows="1"></textarea>
+    </div>
+    <div class="status-bar" id="statusBar">
+      <span id="statusBadge"></span>
+      <span id="statusText"></span>
+      <span style="margin-left:auto;" id="statusTime"></span>
+    </div>
+  </div>
+
+  <!-- AI HELPER PANEL -->
+  <div class="ai-panel" id="aiPanel">
+    <div class="ai-panel-crown">
+      <span class="ai-panel-title" id="aiTitle">AI Helper</span>
+      <button onclick="toggleAIPanel()" id="aiToggleBtn" style="
+        background:none;border:none;color:var(--dust);cursor:pointer;
+        font-size:14px;padding:2px 4px;line-height:1;transition:transform 0.2s;
+      ">❯</button>
+    </div>
+    <div class="ai-messages" id="aiMessages">
+      <div class="ai-msg system">Ask anything about your code.</div>
+    </div>
+    <div class="ai-quick-btns">
+      <button class="ai-quick" onclick="aiAsk('Explain this code')">explain</button>
+      <button class="ai-quick" onclick="aiAsk('Find and fix any bugs')">fix bugs</button>
+      <button class="ai-quick" onclick="aiAsk('Optimize this code')">optimize</button>
+      <button class="ai-quick" onclick="aiAsk('What is the time and space complexity?')">complexity</button>
+    </div>
+    <div class="ai-input-row">
+      <textarea class="ai-input" id="aiInput" placeholder="Ask about your code..." rows="1"
+        onkeydown="if((event.metaKey||event.ctrlKey)&&event.key==='Enter'){event.preventDefault();aiSend();}"></textarea>
+      <button class="ai-send" id="aiSendBtn" onclick="aiSend()">↑</button>
+    </div>
+  </div>
+</div>
+
+<!-- CodeMirror core + C++ mode -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/clike/clike.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/matchbrackets.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/closebrackets.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/comment/comment.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/selection/active-line.min.js"></script>
+<script>
+const DEMO_CODE = '';
+
+// Set dynamic header height for mobile
+function setHeaderHeight() {
+  const h = document.querySelector('.crown-header').offsetHeight;
+  document.querySelector('.workspace').style.height = 'calc(100dvh - ' + h + 'px)';
+}
+window.addEventListener('resize', setHeaderHeight);
+setTimeout(setHeaderHeight, 100);
+
+// Init CodeMirror
+const rawTA = document.getElementById('editor');
+const cm = CodeMirror.fromTextArea(rawTA, {
+  mode: 'text/x-c++src',
+  lineNumbers: true,
+  matchBrackets: true,
+  autoCloseBrackets: true,
+  styleActiveLine: true,
+  tabSize: 4,
+  indentWithTabs: false,
+  indentUnit: 4,
+  extraKeys: {
+    'Ctrl-Enter': runCode,
+    'Cmd-Enter':  runCode,
+    'Tab': cm => cm.execCommand('indentMore'),
+    'Shift-Tab': cm => cm.execCommand('indentLess'),
+    'Ctrl-/': cm => cm.execCommand('toggleComment'),
+    'Cmd-/':  cm => cm.execCommand('toggleComment'),
+  }
+});
+
+cm.setValue(DEMO_CODE);
+
+// Make it fill the editor-body
+cm.getWrapperElement().style.cssText =
+  'flex:1;height:100%;overflow:hidden;font-size:13px;';
+
+// Refs
+const outputParchment = document.getElementById('outputParchment');
+const welcomeState    = document.getElementById('welcomeState');
+const heraldDot       = document.getElementById('heraldDot');
+const runBtn          = document.getElementById('runBtn');
+const btnIcon         = document.getElementById('btnIcon');
+const btnSpinner      = document.getElementById('btnSpinner');
+const btnText         = document.getElementById('btnText');
+const statusBar       = document.getElementById('statusBar');
+const statusBadge     = document.getElementById('statusBadge');
+const statusText      = document.getElementById('statusText');
+const statusTime      = document.getElementById('statusTime');
+const stdin           = document.getElementById('stdinInput');
+
+// Stdin auto-resize
+stdin.addEventListener('input', () => {
+  stdin.style.height = 'auto';
+  stdin.style.height = Math.min(stdin.scrollHeight, 80) + 'px';
+});
+
+// Panel resize
+const handle      = document.getElementById('resizeHandle');
+const editorPanel = document.getElementById('editorPanel');
+const outputPanel = document.getElementById('outputPanel');
+let resizing = false;
+handle.addEventListener('mousedown', () => { resizing = true; document.body.style.cursor = 'col-resize'; document.body.style.userSelect = 'none'; });
+document.addEventListener('mousemove', e => {
+  if (!resizing) return;
+  const r = document.querySelector('.workspace').getBoundingClientRect();
+  const pct = ((e.clientX - r.left) / r.width) * 100;
+  if (pct > 25 && pct < 80) {
+    editorPanel.style.flex = 'none'; editorPanel.style.width = pct + '%';
+    outputPanel.style.flex = '1';   outputPanel.style.width = 'auto';
+    cm.refresh();
+  }
+});
+document.addEventListener('mouseup', () => { resizing = false; document.body.style.cursor = ''; document.body.style.userSelect = ''; });
+
+function copyCode() {
+  navigator.clipboard.writeText(cm.getValue()).then(() => {
+    const b = document.querySelectorAll('.ghost-btn')[0];
+    b.textContent = 'Copied!'; setTimeout(() => b.textContent = 'Copy', 1500);
+  });
+}
+function clearEditor() { cm.setValue(''); cm.focus(); }
+
+function setRunning(r) {
+  runBtn.disabled = r;
+  btnIcon.style.display    = r ? 'none'  : 'block';
+  btnSpinner.style.display = r ? 'block' : 'none';
+  btnText.textContent = r ? 'Compiling…' : 'Execute';
+  if (r) heraldDot.className = 'herald-dot pulse';
+}
+
+function addLine(text, cls) {
+  const d = document.createElement('div');
+  d.className = 'scroll-line ' + cls; d.textContent = text;
+  outputParchment.appendChild(d);
+}
+function addSep(label) {
+  const d = document.createElement('div');
+  d.className = 'output-sep'; d.textContent = label;
+  outputParchment.appendChild(d);
+}
+
+async function runCode() {
+  const code = cm.getValue();
+  if (!code.trim()) return;
+  setRunning(true);
+  welcomeState.style.display = 'none';
+  outputParchment.innerHTML = '';
+
+  const compiler = document.getElementById('compilerSelect').value;
+  const std      = document.getElementById('stdSelect').value;
+  const input    = stdin.value;
+
+  addLine('Summoning compiler ' + compiler + ' · ' + std + '…', 'line-system');
+  const t0 = Date.now();
+
+  try {
+    const resp = await fetch('https://wandbox.org/api/compile.json', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code, compiler, options: 'warning,' + std, stdin: input, 'compiler-option-raw': '-O2' })
+    });
+    if (!resp.ok) throw new Error('Server returned ' + resp.status);
+    const data = await resp.json();
+    const elapsed = ((Date.now() - t0) / 1000).toFixed(2);
+    outputParchment.innerHTML = '';
+
+    if (data.compiler_message) {
+      data.compiler_message.split('\n').forEach(line => {
+        if (!line.trim()) return;
+        const cls = line.includes(': error:') || line.startsWith('error') ? 'line-stderr'
+                  : line.includes(': warning:') || line.startsWith('warning') ? 'line-warn'
+                  : 'line-system';
+        addLine(line, cls);
+      });
+    }
+
+    if (data.program_output !== undefined) {
+      if (data.compiler_message) addSep('✦  output  ✦');
+      data.program_output.split('\n').forEach((line, i, arr) => {
+        if (i < arr.length - 1 || line.trim()) addLine(line, 'line-stdout');
+      });
+    }
+    if (data.program_error) {
+      data.program_error.split('\n').forEach(l => { if (l.trim()) addLine(l, 'line-stderr'); });
+    }
+
+    const exitCode = parseInt(data.status || '0');
+    const banner = document.createElement('div');
+    banner.className = 'exit-banner';
+    banner.innerHTML = `<span>Exit Code</span><span class="exit-code ${exitCode === 0 ? 'ok' : 'err'}">${exitCode}</span><span class="exit-elapsed">${elapsed}s</span>`;
+    outputParchment.appendChild(banner);
+    heraldDot.className = 'herald-dot ' + (exitCode === 0 ? 'ok' : 'err');
+    showStatus(exitCode === 0, elapsed, compiler, std);
+  } catch (err) {
+    outputParchment.innerHTML = '';
+    addLine('The messenger hath failed: ' + err.message, 'line-stderr');
+    if (err.message.includes('fetch') || err.message.includes('Network'))
+      addLine('Ensure thy internet connection remains steadfast.', 'line-system');
+    heraldDot.className = 'herald-dot err';
+    showStatus(false, 0, compiler, std);
+  }
+  setRunning(false);
+  document.getElementById('outputScroll').scrollTop = 0;
+}
+
+function showStatus(ok, elapsed, compiler, std) {
+  statusBar.style.display = 'flex';
+  statusBadge.innerHTML = `<span class="status-badge ${ok ? 'ok' : 'err'}">${ok ? '✦ Victorious' : '✗ Failed'}</span>`;
+  statusText.textContent = compiler + ' · ' + std;
+  statusTime.textContent = elapsed ? elapsed + 's' : '';
+}
+
+// ══════════════════════════ AI HELPER ══════════════════════════
+let aiHistory = [];
+let aiThinking = false;
+
+function aiAsk(prompt) {
+  document.getElementById('aiInput').value = prompt;
+  aiSend();
+}
+
+function addAiMsg(text, role) {
+  const msgs = document.getElementById('aiMessages');
+  const div = document.createElement('div');
+  div.className = 'ai-msg ' + role;
+  div.textContent = text;
+  msgs.appendChild(div);
+  msgs.scrollTop = msgs.scrollHeight;
+  return div;
+}
+
+async function aiSend() {
+  if (aiThinking) return;
+  const input = document.getElementById('aiInput');
+  const userText = input.value.trim();
+  if (!userText) return;
+
+  input.value = '';
+  input.style.height = 'auto';
+  addAiMsg(userText, 'user');
+
+  const code = cm.getValue();
+  aiHistory.push({
+    role: 'user',
+    content: userText + (aiHistory.length === 0 ? '\n\nHere is my C++ code:\n```cpp\n' + code + '\n```' : '')
+  });
+
+  aiThinking = true;
+  document.getElementById('aiSendBtn').disabled = true;
+  const thinkDiv = addAiMsg('Thinking...', 'thinking');
+
+  try {
+    const resp = await fetch('http://localhost:11434/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'deepseek-r1:7b',
+        stream: false,
+        messages: [
+          { role: 'system', content: 'You are an expert C++ assistant. Be concise. Use plain text without markdown.' },
+          ...aiHistory
+        ]
+      })
+    });
+
+    const data = await resp.json();
+    thinkDiv.remove();
+
+    const reply = data.message?.content || 'No response from Ollama. Is it running?';
+    aiHistory.push({ role: 'assistant', content: reply });
+    addAiMsg(reply, 'assistant');
+
+  } catch (err) {
+    thinkDiv.remove();
+    addAiMsg('Error: ' + err.message, 'system');
+  }
+
+  aiThinking = false;
+  document.getElementById('aiSendBtn').disabled = false;
+}
+
+// Toggle AI panel
+function toggleAIPanel() {
+  const panel = document.getElementById('aiPanel');
+  const btn = document.getElementById('aiToggleBtn');
+  const collapsed = panel.classList.toggle('collapsed');
+  btn.style.transform = collapsed ? 'rotate(180deg)' : 'rotate(0deg)';
+  setTimeout(() => cm.refresh(), 280);
+}
+
+// Auto-resize AI input
+document.addEventListener('DOMContentLoaded', () => {
+  const aiInput = document.getElementById('aiInput');
+  if (aiInput) {
+    aiInput.addEventListener('input', () => {
+      aiInput.style.height = 'auto';
+      aiInput.style.height = Math.min(aiInput.scrollHeight, 100) + 'px';
+    });
+  }
+});
+
+</script>
+</body>
+</html>
